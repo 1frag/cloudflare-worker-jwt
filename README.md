@@ -1,6 +1,6 @@
 # Cloudflare Worker JWT
 
-A lightweight JWT implementation with ZERO dependencies for Cloudflare Workers.
+A lightweight JWT implementation with ONE dependency for Cloudflare Workers.
 
 
 ## Contents

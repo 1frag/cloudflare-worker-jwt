@@ -1,3 +1,5 @@
+const {base64url} = require('rfc4648');
+
 class Base64URL {
     static parse(s) {
         return new Uint8Array(Array.prototype.map.call(atob(s.replace(/-/g, '+').replace(/_/g, '/').replace(/\s/g, '')), c => c.charCodeAt(0)))
@@ -79,7 +81,7 @@ class JWT {
         const signature = await crypto.subtle.sign(importAlgorithm, key, this._utf8ToUint8Array(partialToken))
         return `${partialToken}.${Base64URL.stringify(new Uint8Array(signature))}`
     }
-    async verify(token, secret, options = { algorithm: 'HS256' }) {
+    async verify(token, secret, options = { algorithm: 'HS256', publicKey: false }) {
         if (typeof options === 'string')
             options = { algorithm: options }
         if (typeof token !== 'string')
@@ -102,13 +104,39 @@ class JWT {
         let keyFormat = 'raw'
         let keyData
         if (secret.startsWith('-----BEGIN')) {
-            keyFormat = 'pkcs8'
+            keyFormat = options.publicKey ? 'spki' : 'pkcs8'
             keyData = this._str2ab(atob(secret.replace(/-----BEGIN.*?-----/g, '').replace(/-----END.*?-----/g, '').replace(/\s/g, '')))
         } else
             keyData = this._utf8ToUint8Array(secret)
-        const key = await crypto.subtle.importKey(keyFormat, keyData, importAlgorithm, false, ['sign'])
-        const res = await crypto.subtle.sign(importAlgorithm, key, this._utf8ToUint8Array(tokenParts.slice(0, 2).join('.')))
-        return Base64URL.stringify(new Uint8Array(res)) === tokenParts[2]
+        if (options.publicKey) {
+            const key = await crypto.subtle.importKey(
+                keyFormat,
+                keyData,
+                importAlgorithm,
+                base64url.parse(tokenParts[2], {loose: true}),
+                ['verify']
+            )
+            return await crypto.subtle.verify(
+                importAlgorithm,
+                key,
+                base64url.parse(tokenParts[2], {loose: true}),
+                new TextEncoder().encode(tokenParts.slice(0, 2).join('.'))
+            )
+        } else {
+            const key = await crypto.subtle.importKey(
+                keyFormat,
+                keyData,
+                importAlgorithm,
+                false,
+                ['sign']
+            )
+            const res = await crypto.subtle.sign(
+                importAlgorithm,
+                key,
+                this._utf8ToUint8Array(tokenParts.slice(0, 2).join('.'))
+            )
+            return Base64URL.stringify(new Uint8Array(res)) === tokenParts[2]
+        }
     }
     decode(token) {
         return this._decodePayload(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))

@@ -19,5 +19,8 @@
   "bugs": {
     "url": "https://github.com/tsndr/cloudflare-worker-jwt/issues"
   },
-  "homepage": "https://github.com/tsndr/cloudflare-worker-jwt#readme"
+  "homepage": "https://github.com/tsndr/cloudflare-worker-jwt#readme",
+  "dependencies": {
+    "rfc4648": "^1.5.1"
+  }
 }
